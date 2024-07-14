@@ -1,34 +1,35 @@
-extern crate time;
-use time::Instant;
+use my_dijkstra_crate::{Graph, sequential_dijkstra, bidirectional_dijkstra};
 
-use my_dijkstra_crate::{dijkstra::sequential_dijkstra, bidirectional::bidirectional_dijkstra};
+extern crate time;
+use std::time::Instant;
+
 
 fn main() {
-    let graph = vec![
-        vec![(1, 2), (2, 4)],  // Node 0 is connected to Node 1 (cost 2) and Node 2 (cost 4)
-        vec![(2, 1)],          // Node 1 is connected to Node 2 (cost 1)
-        vec![]                 // Node 2 has no outgoing edges
+    let adj_list = vec![
+        vec![(1, 2), (2, 4), (3, 7)],  // Node 0 connections
+        vec![(3, 1)],                  // Node 1 connections
+        vec![(3, 1)],                  // Node 2 connections
+        vec![]                         // Node 3 has no outgoing edges
+    ];
+    let rev_adj_list = vec![
+        vec![],
+        vec![(0, 2)],
+        vec![(0, 4), (1, 1)],
+        vec![(2, 1), (1, 1)]
     ];
 
     let start = 0;
-    let goal = 2;
+    let goal = 3;
 
     // Benchmark sequential Dijkstra
     let start_time = Instant::now();
-    let result_sequential = sequential_dijkstra(&graph, start);
-    let elapsed_time_sequential = start_time.elapsed();
+    let (sequential_cost, sequential_path) = sequential_dijkstra(&adj_list, start, Some(goal));
+    let sequential_duration = start_time.elapsed();
+    println!("Sequential Dijkstra: cost = {:?}, path = {:?}, duration = {:?}", sequential_cost, sequential_path, sequential_duration);
 
     // Benchmark bidirectional Dijkstra
     let start_time = Instant::now();
-    let result_bidirectional = bidirectional_dijkstra(&graph, start, goal);
-    let elapsed_time_bidirectional = start_time.elapsed();
-
-    // Extract the goal node result from the sequential version to compare with bidirectional
-    let sequential_goal_result = result_sequential[goal];
-
-    println!("Sequential Dijkstra Result for Goal: {:?}", sequential_goal_result);
-    println!("Bidirectional Dijkstra Result: {:?}", result_bidirectional);
-    
-    println!("Sequential Dijkstra Time: {:?}", elapsed_time_sequential);
-    println!("Bidirectional Dijkstra Time: {:?}", elapsed_time_bidirectional);
+    let bidirectional_result = bidirectional_dijkstra(&adj_list, &rev_adj_list, start, goal);
+    let bidirectional_duration = start_time.elapsed();
+    println!("Bidirectional Dijkstra: result = {:?}, duration = {:?}", bidirectional_result, bidirectional_duration);
 }

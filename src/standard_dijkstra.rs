@@ -22,9 +22,11 @@ impl PartialOrd for State {
     }
 }
 
-pub fn sequential_dijkstra(graph: &Vec<Vec<(usize, usize)>>, start: usize) -> Vec<usize> {
+pub fn sequential_dijkstra(graph: &Vec<Vec<(usize, usize)>>, start: usize, goal: Option<usize>) -> (usize, Vec<usize>) {
     // Initialize distances with `usize::MAX` indicating infinity.
     let mut dist: Vec<_> = (0..graph.len()).map(|_| usize::MAX).collect();
+    // Initialize predecessors for path reconstruction.
+    let mut prev: Vec<_> = (0..graph.len()).map(|_| None).collect();
     // Initialize the priority queue (min-heap).
     let mut heap = BinaryHeap::new();
 
@@ -38,6 +40,13 @@ pub fn sequential_dijkstra(graph: &Vec<Vec<(usize, usize)>>, start: usize) -> Ve
             continue;
         }
 
+        // If we have reached the goal, exit early.
+        if let Some(goal) = goal {
+            if position == goal {
+                return (dist[goal], reconstruct_path(&prev, start, goal));
+            }
+        }
+
         // For each neighbor of the current node...
         for &(next, weight) in &graph[position] {
             let next_cost = cost + weight;
@@ -46,16 +55,35 @@ pub fn sequential_dijkstra(graph: &Vec<Vec<(usize, usize)>>, start: usize) -> Ve
             if next_cost < dist[next] {
                 // Update the shortest path to the neighbor.
                 dist[next] = next_cost;
+                prev[next] = Some(position);
                 // Push the updated state to the heap.
                 heap.push(State { cost: next_cost, position: next });
             }
         }
     }
 
-    dist
+    if let Some(goal) = goal {
+        (dist[goal], reconstruct_path(&prev, start, goal))
+    } else {
+        (usize::MAX, vec![])
+    }
 }
 
-#[cfg(test)]
+fn reconstruct_path(prev: &Vec<Option<usize>>, start: usize, goal: usize) -> Vec<usize> {
+    let mut path = vec![];
+    let mut current = goal;
+    while let Some(p) = prev[current] {
+        path.push(current);
+        current = p;
+        if current == start {
+            path.push(start);
+            break;
+        }
+    }
+    path.reverse();
+    path
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -67,8 +95,9 @@ mod tests {
             vec![(2, 1)],          // Node 1 is connected to Node 2 (cost 1)
             vec![]                 // Node 2 has no outgoing edges
         ];
-        let result = sequential_dijkstra(&graph, 0);
-        assert_eq!(result, vec![0, 2, 3]);  // Shortest paths: 0->0 (cost 0), 0->1 (cost 2), 0->2 (cost 3)
+        let (cost, path) = sequential_dijkstra(&graph, 0, Some(2));
+        assert_eq!(cost, 3);  // Shortest path cost: 3
+        assert_eq!(path, vec![0, 1, 2]);  // Shortest path: 0 -> 1 -> 2
     }
 
     #[test]
@@ -78,20 +107,22 @@ mod tests {
             vec![],        // Node 1 has no outgoing edges
             vec![]         // Node 2 is disconnected
         ];
-        let result = sequential_dijkstra(&graph, 0);
-        assert_eq!(result, vec![0, 2, usize::MAX]);  // Node 2 is unreachable from Node 0
+        let (cost, path) = sequential_dijkstra(&graph, 0, Some(2));
+        assert_eq!(cost, usize::MAX);  // Node 2 is unreachable from Node 0
+        assert_eq!(path, vec![]);  // No path exists
     }
 
     #[test]
     fn test_larger_graph() {
         let graph = vec![
             vec![(1, 1), (2, 4), (3, 7)],  // Node 0 connections
-            vec![(3, 2)],                  // Node 1 connections
+            vec![(3, 1)],                  // Node 1 connections
             vec![(3, 1)],                  // Node 2 connections
             vec![]                         // Node 3 has no outgoing edges
         ];
-        let result = sequential_dijkstra(&graph, 0);
-        assert_eq!(result, vec![0, 1, 4, 3]);  // Shortest paths: 0->0 (cost 0), 0->1 (cost 1), 0->2 (cost 4), 0->3 (cost 3)
+        let (cost, path) = sequential_dijkstra(&graph, 0, Some(3));
+        assert_eq!(cost, 2);  // Shortest path cost: 2
+        assert_eq!(path, vec![0, 1, 3]);  // Shortest path: 0 -> 1 -> 3
     }
 
     #[test]
@@ -103,8 +134,9 @@ mod tests {
             vec![(4, 7)],                          // Node 3
             vec![(3, 9)],                          // Node 4
         ];
-        let result = sequential_dijkstra(&graph, 0);
-        assert_eq!(result, vec![0, 7, 3, 9, 5]);  // Shortest paths: 0->0 (cost 0), 0->1 (cost 7), 0->2 (cost 3), 0->3 (cost 9), 0->4 (cost 5)
+        let (cost, path) = sequential_dijkstra(&graph, 0, Some(4));
+        assert_eq!(cost, 5);  // Shortest path cost: 5
+        assert_eq!(path, vec![0, 2, 4]);  // Shortest path: 0 -> 2 -> 4
     }
 
     #[test]
@@ -117,7 +149,8 @@ mod tests {
             vec![(1, 1), (2, 8), (3, 2), (5, 6)],  // Node 4
             vec![(4, 6)],                      // Node 5
         ];
-        let result = sequential_dijkstra(&graph, 0);
-        assert_eq!(result, vec![0, 4, 1, 5, 5, 11]);  // Shortest paths: 0->0 (cost 0), 0->1 (cost 4), 0->2 (cost 1), 0->3 (cost 5), 0->4 (cost 5), 0->5 (cost 11)
+        let (cost, path) = sequential_dijkstra(&graph, 0, Some(5));
+        assert_eq!(cost, 11);  // Shortest path cost: 11
+        assert_eq!(path, vec![0, 2, 1, 4, 5]);  // Shortest path: 0 -> 2 -> 1 -> 4 -> 5
     }
 }

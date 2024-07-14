@@ -8,6 +8,10 @@ rayon = "1.5"
 crossbeam = "0.8.3"
 num_cpus = "1.13"
 time = "0.2"
+either = "1.6.1"
+
+[dev-dependencies]
+criterion = "0.3" 
 
 [lib]
 name = "my_dijkstra_crate"
