@@ -1,4 +1,6 @@
-use my_dijkstra_crate::{sequential_dijkstra, bidirectional_dijkstra};
+// FOR ADDITIONAL BENCHMARK TEST
+
+use my_dijkstra_crate::{sequential_dijkstra, bidirectional_dijkstra, parallel_bi_dijkstra};
 use std::time::Instant;
 
 fn is_valid_path(graph: &Vec<Vec<(usize, usize)>>, path: &Vec<usize>, expected_cost: usize) -> bool {
@@ -153,6 +155,13 @@ fn main() {
         let bidirectional_duration = start_time.elapsed();
         println!("Bidirectional Dijkstra: cost = {:?}, path = {:?}, duration = {:?}", bidirectional_cost, bidirectional_path, bidirectional_duration);
 
+         // Benchmark bidirectional Dijkstra
+         /* 
+         let start_time = Instant::now();
+         let (par_bidirectional_cost, par_bidirectional_path) = parallel_bi_dijkstra(&adj_list, start, goal);
+         let par_bidirectional_duration = start_time.elapsed();
+         println!("Parallel Bidirectional Dijkstra: cost = {:?}, path = {:?}, duration = {:?}", par_bidirectional_cost, par_bidirectional_path, par_bidirectional_duration);
+*/
         // Ensure both algorithms produce the same cost
         assert_eq!(sequential_cost, bidirectional_cost, "Costs do not match for {}", name);
 

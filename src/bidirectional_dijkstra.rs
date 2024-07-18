@@ -2,8 +2,6 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use rand::{distributions::{Distribution, Uniform}, SeedableRng, rngs::StdRng, Rng};
 
-
-
 #[derive(Copy, Clone, Eq, PartialEq)]
 struct State {
     cost: usize,
@@ -12,8 +10,8 @@ struct State {
 
 impl Ord for State {
     fn cmp(&self, other: &Self) -> Ordering {
-        // We reverse the order to make the priority queue a min-heap.
         other.cost.cmp(&self.cost)
+            .then_with(|| self.position.cmp(&other.position))
     }
 }
 
@@ -23,7 +21,6 @@ impl PartialOrd for State {
     }
 }
 
-// reverse the adjacency list for the backward search
 fn reverse_adj_list(adj_list: &[Vec<(usize, usize)>]) -> Vec<Vec<(usize, usize)>> {
     let mut rev_adj_list = vec![Vec::new(); adj_list.len()];
     for (node, edges) in adj_list.iter().enumerate() {
@@ -32,24 +29,6 @@ fn reverse_adj_list(adj_list: &[Vec<(usize, usize)>]) -> Vec<Vec<(usize, usize)>
         }
     }
     rev_adj_list
-}
-
-fn relax(
-    graph: &[Vec<(usize, usize)>],
-    heap: &mut BinaryHeap<State>,
-    dists: &mut Vec<usize>,
-    prev: &mut Vec<Option<usize>>,
-    u: usize,
-    cost: usize,
-) {
-    for &(neighbor, weight) in &graph[u] {
-        let next_cost = cost + weight;
-        if next_cost < dists[neighbor] {
-            dists[neighbor] = next_cost;
-            heap.push(State { cost: next_cost, position: neighbor });
-            prev[neighbor] = Some(u);
-        }
-    }
 }
 
 pub fn bidirectional_dijkstra(graph: &[Vec<(usize, usize)>], start: usize, goal: usize) -> (usize, Vec<usize>) {
@@ -62,10 +41,10 @@ pub fn bidirectional_dijkstra(graph: &[Vec<(usize, usize)>], start: usize, goal:
     let mut dist_bwd = vec![usize::MAX; graph.len()];
     let mut heap_fwd = BinaryHeap::new();
     let mut heap_bwd = BinaryHeap::new();
-    let mut visited_fwd = HashSet::new();
-    let mut visited_bwd = HashSet::new();
     let mut prev_fwd = vec![None; graph.len()];
     let mut prev_bwd = vec![None; graph.len()];
+    let mut visited_fwd = vec![false; graph.len()];
+    let mut visited_bwd = vec![false; graph.len()];
 
     dist_fwd[start] = 0;
     dist_bwd[goal] = 0;
@@ -73,81 +52,78 @@ pub fn bidirectional_dijkstra(graph: &[Vec<(usize, usize)>], start: usize, goal:
     heap_bwd.push(State { cost: 0, position: goal });
 
     let mut best_cost = usize::MAX;
-    let mut best_meeting_point = None;
+    let mut best_path = Vec::new();
 
-    while !heap_fwd.is_empty() && !heap_bwd.is_empty() {
-        if let Some(State { cost: cost_fwd, position: pos_fwd }) = heap_fwd.pop() {
-            if visited_fwd.insert(pos_fwd) {
-                relax(graph, &mut heap_fwd, &mut dist_fwd, &mut prev_fwd, pos_fwd, cost_fwd);
-
-                if visited_bwd.contains(&pos_fwd) {
-                    let total_cost = dist_fwd[pos_fwd] + dist_bwd[pos_fwd];
-                    if total_cost < best_cost {
-                        best_cost = total_cost;
-                        best_meeting_point = Some(pos_fwd);
-                    }
-                }
-            }
-        }
-
-        if let Some(State { cost: cost_bwd, position: pos_bwd }) = heap_bwd.pop() {
-            if visited_bwd.insert(pos_bwd) {
-                relax(&rev_graph, &mut heap_bwd, &mut dist_bwd, &mut prev_bwd, pos_bwd, cost_bwd);
-
-                if visited_fwd.contains(&pos_bwd) {
-                    let total_cost = dist_fwd[pos_bwd] + dist_bwd[pos_bwd];
-                    if total_cost < best_cost {
-                        best_cost = total_cost;
-                        best_meeting_point = Some(pos_bwd);
-                    }
-                }
-            }
-        }
-
-        let min_fwd_cost = heap_fwd.peek().map_or(usize::MAX, |state| state.cost);
-        let min_bwd_cost = heap_bwd.peek().map_or(usize::MAX, |state| state.cost);
-        if min_fwd_cost + min_bwd_cost >= best_cost {
+    while let (Some(State { cost: cost_fwd, position: pos_fwd }), Some(State { cost: cost_bwd, position: pos_bwd })) = (heap_fwd.peek(), heap_bwd.peek()) {
+        if cost_fwd + cost_bwd >= best_cost {
             break;
         }
+
+        //  from start
+        if let Some(State { cost, position }) = heap_fwd.pop() {
+            if !visited_fwd[position] {
+                visited_fwd[position] = true;
+                for &(neighbor, weight) in &graph[position] {
+                    let next_cost = cost + weight;
+                    if next_cost < dist_fwd[neighbor] {
+                        dist_fwd[neighbor] = next_cost;
+                        heap_fwd.push(State { cost: next_cost, position: neighbor });
+                        prev_fwd[neighbor] = Some(position);
+                    }
+                }
+
+                if visited_bwd[position] {
+                    let total_cost = dist_fwd[position] + dist_bwd[position];
+                    if total_cost < best_cost {
+                        best_cost = total_cost;
+                        best_path = reconstruct_path(position, &prev_fwd, &prev_bwd, start, goal);
+                    }
+                }
+            }
+        }
+
+        //  from goal
+        if let Some(State { cost, position }) = heap_bwd.pop() {
+            if !visited_bwd[position] {
+                visited_bwd[position] = true;
+                for &(neighbor, weight) in &rev_graph[position] {
+                    let next_cost = cost + weight;
+                    if next_cost < dist_bwd[neighbor] {
+                        dist_bwd[neighbor] = next_cost;
+                        heap_bwd.push(State { cost: next_cost, position: neighbor });
+                        prev_bwd[neighbor] = Some(position);
+                    }
+                }
+
+                if visited_fwd[position] {
+                    let total_cost = dist_fwd[position] + dist_bwd[position];
+                    if total_cost < best_cost {
+                        best_cost = total_cost;
+                        best_path = reconstruct_path(position, &prev_fwd, &prev_bwd, start, goal);
+                    }
+                }
+            }
+        }
     }
 
-    if let Some(meeting_point) = best_meeting_point {
-        let path = reconstruct_path(meeting_point, &prev_fwd, &prev_bwd, start, goal);
-        (best_cost, path)
-    } else {
-        (usize::MAX, vec![])
-    }
+    (best_cost, best_path)
 }
 
 fn reconstruct_path(meeting_point: usize, prev_fwd: &[Option<usize>], prev_bwd: &[Option<usize>], start: usize, goal: usize) -> Vec<usize> {
     let mut path = Vec::new();
     let mut current = Some(meeting_point);
-
-    // from start to the meeting point
     while let Some(prev) = current {
         path.push(prev);
-        if prev == start {
-            break;
-        }
         current = prev_fwd[prev];
     }
-    path.reverse(); 
-
-    //  from meeting point to goal
+    path.reverse();
     current = prev_bwd[meeting_point];
     while let Some(prev) = current {
         path.push(prev);
-        if prev == goal {
-            break;
-        }
         current = prev_bwd[prev];
     }
-    
     path
 }
-
-
-   
 
 fn generate_large_graph(nodes: usize, edges_per_node: usize, max_weight: usize, seed: u64) -> Vec<Vec<(usize, usize)>> {
     let mut rng = StdRng::seed_from_u64(seed);
@@ -167,6 +143,8 @@ fn generate_large_graph(nodes: usize, edges_per_node: usize, max_weight: usize, 
 
     graph
 }
+
+
 
 
 
@@ -278,20 +256,21 @@ mod tests {
 /*
 successes:
 
----- bidirectional_dijkstra::tests::test_larger_graph stdout ----
-Test Larger Graph - Time elapsed: 223.333µs
-
 ---- bidirectional_dijkstra::tests::test_simple_graph stdout ----
-Test Simple Graph - Time elapsed: 71.084µs
+Test Simple Graph - Time elapsed: 120.375µs
 
 ---- bidirectional_dijkstra::tests::test_complex_graph stdout ----
-Test Complex Graph - Time elapsed: 153.5µs
+Test Complex Graph - Time elapsed: 376.291µs
 
----- bidirectional_dijkstra::tests::test_disconnected_graph stdout ----
-Test Disconnected Graph - Time elapsed: 260µs
+---- bidirectional_dijkstra::tests::test_larger_graph stdout ----
+Test Larger Graph - Time elapsed: 292.583µs
 
 ---- bidirectional_dijkstra::tests::test_very_complex_graph stdout ----
-Test Very Complex Graph - Time elapsed: 32.333µs
+Test Very Complex Graph - Time elapsed: 42.292µs
+
+---- bidirectional_dijkstra::tests::test_disconnected_graph stdout ----
+Test Disconnected Graph - Time elapsed: 228.208µs
 
 ---- bidirectional_dijkstra::tests::test_huge_graph stdout ----
-Test Huge Graph - Time elapsed: 14.525125ms, Cost: 37, Path Length: 8 */
+Test Huge Graph - Time elapsed: 329.195ms, Cost: 54, Path Length: 13
+ */

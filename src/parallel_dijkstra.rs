@@ -83,6 +83,7 @@ fn reconstruct_path(prev: &Vec<Option<usize>>, start: usize, goal: usize) -> Vec
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Instant;
 
     #[test]
     fn test_simple_graph() {
@@ -91,7 +92,10 @@ mod tests {
             vec![(2, 1)],          // Node 1 is connected to Node 2 (cost 1)
             vec![]                 // Node 2 has no outgoing edges
         ];
+        let start_time = Instant::now();
         let (cost, path) = parallel_dijkstra(&graph, 0, Some(2));
+        let duration = start_time.elapsed();
+        println!("Test Simple Graph - Time elapsed: {:?}", duration);
         assert_eq!(cost, 3);  // Shortest path cost: 3
         assert_eq!(path, vec![0, 1, 2]);  // Shortest path: 0 -> 1 -> 2
     }
@@ -103,7 +107,12 @@ mod tests {
             vec![],        // Node 1 has no outgoing edges
             vec![]         // Node 2 is disconnected
         ];
+        let start_time = Instant::now();
+
         let (cost, path) = parallel_dijkstra(&graph, 0, Some(2));
+        let duration = start_time.elapsed();
+        println!("Test Disconnected Graph - Time elapsed: {:?}", duration);
+
         assert_eq!(cost, usize::MAX);  // Node 2 is unreachable from Node 0
         assert_eq!(path, vec![]);  // No path exists
     }
@@ -116,7 +125,12 @@ mod tests {
             vec![(3, 1)],                  // Node 2 connections
             vec![]                         // Node 3 has no outgoing edges
         ];
+        let start_time = Instant::now();
+
         let (cost, path) = parallel_dijkstra(&graph, 0, Some(3));
+        let duration = start_time.elapsed();
+        println!("Test Larger Graph - Time elapsed: {:?}", duration);
+
         assert_eq!(cost, 2);  // Shortest path cost: 2
         assert_eq!(path, vec![0, 1, 3]);  // Shortest path: 0 -> 1 -> 3
     }
@@ -130,7 +144,12 @@ mod tests {
             vec![(4, 7)],                          // Node 3
             vec![(3, 9)],                          // Node 4
         ];
+        let start_time = Instant::now();
+
         let (cost, path) = parallel_dijkstra(&graph, 0, Some(4));
+        let duration = start_time.elapsed();
+        println!("Test Complex Graph - Time elapsed: {:?}", duration);
+
         assert_eq!(cost, 5);  // Shortest path cost: 5
         assert_eq!(path, vec![0, 2, 4]);  // Shortest path: 0 -> 2 -> 4
     }
@@ -145,8 +164,35 @@ mod tests {
             vec![(1, 1), (2, 8), (3, 2), (5, 6)],  // Node 4
             vec![(4, 6)],                      // Node 5
         ];
+        let start_time = Instant::now();
+
         let (cost, path) = parallel_dijkstra(&graph, 0, Some(5));
+        let duration = start_time.elapsed();
+        println!("Test Very Complex Graph - Time elapsed: {:?}", duration);
+
         assert_eq!(cost, 11);  // Shortest path cost: 11
         assert_eq!(path, vec![0, 2, 1, 4, 5]);  // Shortest path: 0 -> 2 -> 1 -> 4 -> 5
     }
+
+
+
 }
+
+/*
+ successes:
+
+ ---- parallel_dijkstra::tests::test_simple_graph stdout ----
+Test Simple Graph - Time elapsed: 678.583µs
+
+---- parallel_dijkstra::tests::test_larger_graph stdout ----
+Test Larger Graph - Time elapsed: 674.708µs
+
+---- parallel_dijkstra::tests::test_disconnected_graph stdout ----
+Test Disconnected Graph - Time elapsed: 632.208µs
+
+---- parallel_dijkstra::tests::test_complex_graph stdout ----
+Test Complex Graph - Time elapsed: 696.791µs
+
+---- parallel_dijkstra::tests::test_very_complex_graph stdout ----
+Test Very Complex Graph - Time elapsed: 762.833µs
+ */

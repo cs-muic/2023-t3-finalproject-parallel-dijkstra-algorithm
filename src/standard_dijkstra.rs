@@ -215,22 +215,23 @@ mod tests {
 /*
 successes:
 
----- standard_dijkstra::tests::test_complex_graph stdout ----
-Test Complex Graph - Time elapsed: 146.583µs
-
----- standard_dijkstra::tests::test_disconnected_graph stdout ----
-Test Disconnected Graph - Time elapsed: 153.5µs
-
 ---- standard_dijkstra::tests::test_simple_graph stdout ----
-Test Simple Graph - Time elapsed: 149.125µs
+Test Simple Graph - Time elapsed: 260.708µs
+
+---- standard_dijkstra::tests::test_complex_graph stdout ----
+Test Complex Graph - Time elapsed: 338.416µs
 
 ---- standard_dijkstra::tests::test_larger_graph stdout ----
-Test Larger Graph - Time elapsed: 141.125µs
+Test Larger Graph - Time elapsed: 291.708µs
 
 ---- standard_dijkstra::tests::test_very_complex_graph stdout ----
-Test Very Complex Graph - Time elapsed: 147.916µs
+Test Very Complex Graph - Time elapsed: 98.209µs
+
+---- standard_dijkstra::tests::test_disconnected_graph stdout ----
+Test Disconnected Graph - Time elapsed: 334.25µs
 
 ---- standard_dijkstra::tests::test_huge_graph stdout ----
-Test Huge Graph - Time elapsed: 5.170375ms, Cost: 37, Path Length: 8
+Test Huge Graph - Time elapsed: 252.426083ms, Cost: 54, Path Length: 13
+
 
  */
