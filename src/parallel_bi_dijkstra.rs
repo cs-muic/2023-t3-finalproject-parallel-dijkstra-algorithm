@@ -242,7 +242,7 @@ mod tests {
         let start_time = Instant::now();
         let (cost, path) = parallel_bidirectional_dijkstra(&graph, 0, 2);
         let duration = start_time.elapsed();
-        println!("Bi-Test Simple Graph - Time elapsed: {:?}", duration);
+        println!("Par-Bi-Test Simple Graph - Time elapsed: {:?}", duration);
         assert_eq!(cost, 3);  // Shortest path cost: 3
         assert_eq!(path, vec![0, 1, 2]);  // Shortest path: 0 -> 1 -> 2
     }
@@ -258,7 +258,7 @@ mod tests {
         let start_time = Instant::now();
         let (cost, path) = parallel_bidirectional_dijkstra(&graph, 0, 3);
         let duration = start_time.elapsed();
-        println!("Bi-Test Larger Graph - Time elapsed: {:?}", duration);
+        println!("Par-Bi-Test Larger Graph - Time elapsed: {:?}", duration);
         assert_eq!(cost, 2);  // Shortest path cost: 2
         assert_eq!(path, vec![0, 1, 3]);  // Shortest path: 0 -> 1 -> 3
     }
@@ -275,7 +275,7 @@ mod tests {
         let start_time = Instant::now();
         let (cost, path) = parallel_bidirectional_dijkstra(&graph, 0, 4);
         let duration = start_time.elapsed();
-        println!("Bi-Test Complex Graph - Time elapsed: {:?}", duration);
+        println!("Par-Bi-Test Complex Graph - Time elapsed: {:?}", duration);
         assert_eq!(cost, 5);  // Shortest path cost: 5
         assert_eq!(path, vec![0, 2, 4]);  // Shortest path: 0 -> 2 -> 4
     }
@@ -293,7 +293,7 @@ mod tests {
         let start_time = Instant::now();
         let (cost, path) = parallel_bidirectional_dijkstra(&graph, 0, 5);
         let duration = start_time.elapsed();
-        println!("Bi-Test Very Complex Graph - Time elapsed: {:?}", duration);
+        println!("Par-Bi-Test Very Complex Graph - Time elapsed: {:?}", duration);
         assert_eq!(cost, 11);  // Shortest path cost: 11
         assert_eq!(path, vec![0, 2, 1, 4, 5]);  // Shortest path: 0 -> 2 -> 1 -> 4 -> 5
     }
@@ -322,7 +322,7 @@ mod tests {
         let start_time = Instant::now();
         let (cost, path) = parallel_bidirectional_dijkstra(&graph, 0, 999);
         let duration = start_time.elapsed();
-        println!("Bi-Test Large Simple Graph - Time elapsed: {:?}", duration);
+        println!("Par-Bi-Test Large Simple Graph - Time elapsed: {:?}", duration);
         println!("Cost: {}, Path length: {}", cost, path.len());
     }
 
@@ -332,7 +332,7 @@ mod tests {
         let start_time = Instant::now();
         let (cost, path) = parallel_bidirectional_dijkstra(&graph, 0, 999);
         let duration = start_time.elapsed();
-        println!("Bi-Test Large Larger Graph - Time elapsed: {:?}", duration);
+        println!("Par-Bi-Test Large Larger Graph - Time elapsed: {:?}", duration);
         println!("Cost: {}, Path length: {}", cost, path.len());
     }
 
@@ -342,7 +342,7 @@ mod tests {
         let start_time = Instant::now();
         let (cost, path) = parallel_bidirectional_dijkstra(&graph, 0, 1999);
         let duration = start_time.elapsed();
-        println!("Bi-Test Large Complex Graph - Time elapsed: {:?}", duration);
+        println!("Par-Bi-Test Large Complex Graph - Time elapsed: {:?}", duration);
         println!("Cost: {}, Path length: {}", cost, path.len());
     }
 
@@ -352,7 +352,7 @@ mod tests {
         let start_time = Instant::now();
         let (cost, path) = parallel_bidirectional_dijkstra(&graph, 0, 1999);
         let duration = start_time.elapsed();
-        println!("Bi-Test Large Very Complex Graph - Time elapsed: {:?}", duration);
+        println!("Par-Bi-Test Large Very Complex Graph - Time elapsed: {:?}", duration);
         println!("Cost: {}, Path length: {}", cost, path.len());
     }
 }
