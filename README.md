@@ -33,3 +33,6 @@ To run the `main.rs`, use the following command:
 ```sh
 cargo test --release -- --nocapture
 ```
+
+[!NOTE]
+*To learn about Dijkstra at the very beginning of this experiment, we coded Dijkstra and Bidirectional Dijkstra in Python, see `pythohh.py`.*
