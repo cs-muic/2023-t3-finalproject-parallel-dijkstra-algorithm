@@ -145,7 +145,7 @@ fn main() {
 
         // Benchmark sequential Dijkstra
         let start_time = Instant::now();
-        let (sequential_cost, sequential_path) = sequential_dijkstra(&adj_list, start, Some(goal));
+        let (sequential_cost, sequential_path) = sequential_dijkstra(&adj_list, start, goal);
         let sequential_duration = start_time.elapsed();
         println!("Sequential Dijkstra: cost = {:?}, path = {:?}, duration = {:?}", sequential_cost, sequential_path, sequential_duration);
 

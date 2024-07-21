@@ -8,4 +8,4 @@ pub use graph::Graph;
 pub use standard_dijkstra::sequential_dijkstra;
 pub use bidirectional_dijkstra::bidirectional_dijkstra;
 pub use parallel_dijkstra::parallel_dijkstra;
-pub use parallel_bi_dijkstra::parallel_bi_dijkstra;
+pub use parallel_bi_dijkstra::parallel_bidirectional_dijkstra;

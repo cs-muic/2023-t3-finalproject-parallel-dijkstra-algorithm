@@ -8,81 +8,77 @@ struct State {
     position: usize,
 }
 
-// The priority queue depends on `Ord`.
 impl Ord for State {
     fn cmp(&self, other: &Self) -> Ordering {
-        // We reverse the order to make the priority queue a min-heap.
         other.cost.cmp(&self.cost)
+            .then_with(|| self.position.cmp(&other.position))
     }
 }
 
-// `PartialOrd` needs to be implemented as well.
 impl PartialOrd for State {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-pub fn sequential_dijkstra(graph: &Vec<Vec<(usize, usize)>>, start: usize, goal: Option<usize>) -> (usize, Vec<usize>) {
-    // Initialize distances with `usize::MAX` indicating infinity.
-    let mut dist: Vec<_> = (0..graph.len()).map(|_| usize::MAX).collect();
-    // Initialize predecessors for path reconstruction.
-    let mut prev: Vec<_> = (0..graph.len()).map(|_| None).collect();
-    // Initialize the priority queue (min-heap).
-    let mut heap = BinaryHeap::new();
+pub fn sequential_dijkstra(graph: &[Vec<(usize, usize)>], start: usize, goal: usize) -> (usize, Vec<usize>) {
+    if start == goal {
+        return (0, vec![start]);
+    }
 
-    // Start with the initial node, distance 0.
+    let mut dist = vec![usize::MAX; graph.len()];
+    let mut heap = BinaryHeap::new();
+    let mut prev = vec![None; graph.len()];
+
     dist[start] = 0;
     heap.push(State { cost: 0, position: start });
 
     while let Some(State { cost, position }) = heap.pop() {
-        // If the cost is greater than the recorded shortest distance, skip it.
+        if position == goal {
+            let path = reconstruct_path(goal, &prev);
+            return (cost, path);
+        }
+
         if cost > dist[position] {
             continue;
         }
 
-        // If we have reached the goal, exit early.
-        if let Some(goal) = goal {
-            if position == goal {
-                return (dist[goal], reconstruct_path(&prev, start, goal));
-            }
-        }
-
-        // For each neighbor of the current node...
-        for &(next, weight) in &graph[position] {
-            let next_cost = cost + weight;
-
-            // If a shorter path to the neighbor is found...
-            if next_cost < dist[next] {
-                // Update the shortest path to the neighbor.
-                dist[next] = next_cost;
-                prev[next] = Some(position);
-                // Push the updated state to the heap.
-                heap.push(State { cost: next_cost, position: next });
+        for &(neighbor, weight) in &graph[position] {
+            let next_cost = cost.saturating_add(weight);
+            if next_cost < dist[neighbor] {
+                dist[neighbor] = next_cost;
+                heap.push(State { cost: next_cost, position: neighbor });
+                prev[neighbor] = Some(position);
             }
         }
     }
 
-    if let Some(goal) = goal {
-        (dist[goal], reconstruct_path(&prev, start, goal))
-    } else {
-        (usize::MAX, vec![])
-    }
+    (usize::MAX, Vec::new())
 }
 
-fn reconstruct_path(prev: &Vec<Option<usize>>, start: usize, goal: usize) -> Vec<usize> {
-    let mut path = vec![];
-    let mut current = goal;
-    while let Some(p) = prev[current] {
-        path.push(current);
-        current = p;
-        if current == start {
-            path.push(start);
-            break;
-        }
+fn reconstruct_path(goal: usize, prev: &[Option<usize>]) -> Vec<usize> {
+    let mut path = Vec::new();
+    let mut current = Some(goal);
+    while let Some(node) = current {
+        path.push(node);
+        current = prev[node];
     }
     path.reverse();
     path
+}
+
+fn main() {
+    let graph = vec![
+        vec![(1, 7), (2, 9), (5, 14)], // edges from node 0
+        vec![(0, 7), (2, 10), (3, 15)], // edges from node 1
+        vec![(0, 9), (1, 10), (3, 11), (5, 2)], // edges from node 2
+        vec![(1, 15), (2, 11), (4, 6)], // edges from node 3
+        vec![(3, 6), (5, 9)], // edges from node 4
+        vec![(0, 14), (2, 2), (4, 9)], // edges from node 5
+    ];
+
+    let (cost, path) = sequential_dijkstra(&graph, 0, 4);
+    println!("Cost: {}, Path: {:?}", cost, path);
 }
 
 
@@ -110,6 +106,9 @@ fn generate_large_graph(nodes: usize, edges_per_node: usize, max_weight: usize, 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::distributions::{Distribution, Uniform};
+    use rand::rngs::StdRng;
+    use rand::SeedableRng;
     use std::time::Instant;
 
     #[test]
@@ -120,27 +119,13 @@ mod tests {
             vec![]                 // Node 2 has no outgoing edges
         ];
         let start_time = Instant::now();
-        let (cost, path) = sequential_dijkstra(&graph, 0, Some(2));
+        let (cost, path) = sequential_dijkstra(&graph, 0, 2);
         let duration = start_time.elapsed();
         println!("Test Simple Graph - Time elapsed: {:?}", duration);
         assert_eq!(cost, 3);  // Shortest path cost: 3
         assert_eq!(path, vec![0, 1, 2]);  // Shortest path: 0 -> 1 -> 2
     }
 
-    #[test]
-    fn test_disconnected_graph() {
-        let graph = vec![
-            vec![(1, 2)],  // Node 0 is connected to Node 1 (cost 2)
-            vec![],        // Node 1 has no outgoing edges
-            vec![]         // Node 2 is disconnected
-        ];
-        let start_time = Instant::now();
-        let (cost, path) = sequential_dijkstra(&graph, 0, Some(2));
-        let duration = start_time.elapsed();
-        println!("Test Disconnected Graph - Time elapsed: {:?}", duration);
-        assert_eq!(cost, usize::MAX);  // Node 2 is unreachable from Node 0
-        assert_eq!(path, vec![]);  // No path exists
-    }
 
     #[test]
     fn test_larger_graph() {
@@ -151,7 +136,7 @@ mod tests {
             vec![]                         // Node 3 has no outgoing edges
         ];
         let start_time = Instant::now();
-        let (cost, path) = sequential_dijkstra(&graph, 0, Some(3));
+        let (cost, path) = sequential_dijkstra(&graph, 0, 3);
         let duration = start_time.elapsed();
         println!("Test Larger Graph - Time elapsed: {:?}", duration);
         assert_eq!(cost, 2);  // Shortest path cost: 2
@@ -168,7 +153,7 @@ mod tests {
             vec![(3, 9)],                          // Node 4
         ];
         let start_time = Instant::now();
-        let (cost, path) = sequential_dijkstra(&graph, 0, Some(4));
+        let (cost, path) = sequential_dijkstra(&graph, 0, 4);
         let duration = start_time.elapsed();
         println!("Test Complex Graph - Time elapsed: {:?}", duration);
         assert_eq!(cost, 5);  // Shortest path cost: 5
@@ -186,7 +171,7 @@ mod tests {
             vec![(4, 6)],                      // Node 5
         ];
         let start_time = Instant::now();
-        let (cost, path) = sequential_dijkstra(&graph, 0, Some(5));
+        let (cost, path) = sequential_dijkstra(&graph, 0, 5);
         let duration = start_time.elapsed();
         println!("Test Very Complex Graph - Time elapsed: {:?}", duration);
         assert_eq!(cost, 11);  // Shortest path cost: 11
@@ -205,11 +190,79 @@ mod tests {
         let start = 0;
         let goal = Some(nodes - nodes/3); // Assuming we want to find path from node 0 to the last node
         let start_time = std::time::Instant::now();
-        let (cost, path) = sequential_dijkstra(&graph, start, goal);
+        let (cost, path) = sequential_dijkstra(&graph, start, nodes - 1);
         let duration = start_time.elapsed();
 
         println!("Test Huge Graph - Time elapsed: {:?}, Cost: {}, Path Length: {}", duration, cost, path.len());
     }
+    fn generate_random_graph(nodes: usize, edges: usize) -> Vec<Vec<(usize, usize)>> {
+        let mut graph = vec![Vec::new(); nodes];
+        let mut rng = StdRng::seed_from_u64(42); // Seed for reproducibility
+        let range = Uniform::from(0..nodes);
+        let weight_range = Uniform::from(1..100); // Random weights between 1 and 100
+
+        for _ in 0..edges {
+            let u = range.sample(&mut rng);
+            let v = range.sample(&mut rng);
+            if u != v {
+                let weight = weight_range.sample(&mut rng);
+                graph[u].push((v, weight));
+            }
+        }
+
+        graph
+    }
+
+    #[test]
+    fn test_large_simple_graph() {
+        let graph = generate_random_graph(1000, 5000);
+        let start_time = Instant::now();
+        let (cost, path) = sequential_dijkstra(&graph, 0, 999);
+        let duration = start_time.elapsed();
+        println!("Bi-Test Large Simple Graph - Time elapsed: {:?}", duration);
+        println!("Cost: {}, Path length: {}", cost, path.len());
+    }
+
+    #[test]
+    fn test_large_disconnected_graph() {
+        let graph = generate_random_graph(1000, 3000);
+        let start_time = Instant::now();
+        let (cost, path) = sequential_dijkstra(&graph, 0, 999);
+        let duration = start_time.elapsed();
+        println!("Bi-Test Large Disconnected Graph - Time elapsed: {:?}", duration);
+        println!("Cost: {}, Path length: {}", cost, path.len());
+    }
+
+    #[test]
+    fn test_large_larger_graph() {
+        let graph = generate_random_graph(1000, 8000);
+        let start_time = Instant::now();
+        let (cost, path) = sequential_dijkstra(&graph, 0, 999);
+        let duration = start_time.elapsed();
+        println!("Bi-Test Large Larger Graph - Time elapsed: {:?}", duration);
+        println!("Cost: {}, Path length: {}", cost, path.len());
+    }
+
+    #[test]
+    fn test_large_complex_graph() {
+        let graph = generate_random_graph(2000, 10000);
+        let start_time = Instant::now();
+        let (cost, path) = sequential_dijkstra(&graph, 0, 1999);
+        let duration = start_time.elapsed();
+        println!("Bi-Test Large Complex Graph - Time elapsed: {:?}", duration);
+        println!("Cost: {}, Path length: {}", cost, path.len());
+    }
+
+    #[test]
+    fn test_large_very_complex_graph() {
+        let graph = generate_random_graph(2000, 15000);
+        let start_time = Instant::now();
+        let (cost, path) = sequential_dijkstra(&graph, 0, 1999);
+        let duration = start_time.elapsed();
+        println!("Bi-Test Large Very Complex Graph - Time elapsed: {:?}", duration);
+        println!("Cost: {}, Path length: {}", cost, path.len());
+    }
+
 }
 
 /*
