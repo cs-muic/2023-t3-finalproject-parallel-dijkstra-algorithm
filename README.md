@@ -35,4 +35,5 @@ cargo test --release -- --nocapture
 ```
 
 [!NOTE]
+
 *To learn about Dijkstra at the very beginning of this experiment, we coded Dijkstra and Bidirectional Dijkstra in Python, see `pythohh.py`.*
