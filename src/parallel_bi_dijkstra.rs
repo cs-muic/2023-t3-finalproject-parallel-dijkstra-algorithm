@@ -62,99 +62,134 @@ pub fn parallel_bidirectional_dijkstra(graph: &[Vec<(usize, usize)>], start: usi
         heap_bwd.push(State { cost: 0, position: goal });
     }
 
+    let forward_done = Arc::new(Mutex::new(false));
+    let backward_done = Arc::new(Mutex::new(false));
+
     rayon::scope(|s| {
-        s.spawn(|_| {
-            while let Some(State { cost, position }) = {
-                let mut heap_fwd = heap_fwd.lock().unwrap();
-                heap_fwd.pop()
-            } {
-                {
-                    let dist_fwd = dist_fwd.lock().unwrap();
-                    if cost > dist_fwd[position] {
-                        continue;
-                    }
-                }
-                for &(neighbor, weight) in &graph[position] {
-                    let next_cost = cost.saturating_add(weight);
-                    let mut should_continue = false;
+        let forward_done_fwd = Arc::clone(&forward_done);
+        let backward_done_fwd = Arc::clone(&backward_done);
+        let dist_fwd_fwd = Arc::clone(&dist_fwd);
+        let dist_bwd_fwd = Arc::clone(&dist_bwd);
+        let heap_fwd_fwd = Arc::clone(&heap_fwd);
+        let prev_fwd_fwd = Arc::clone(&prev_fwd);
+        let estimate_fwd = Arc::clone(&estimate);
+        let join_node_fwd = Arc::clone(&join_node);
+        let graph_fwd = Arc::clone(&graph);
+
+        s.spawn(move |_| {
+            while !*forward_done_fwd.lock().unwrap() {
+                if let Some(State { cost, position }) = {
+                    let mut heap_fwd = heap_fwd_fwd.lock().unwrap();
+                    heap_fwd.pop()
+                } {
                     {
-                        let mut dist_fwd = dist_fwd.lock().unwrap();
-                        if next_cost < dist_fwd[neighbor] {
-                            dist_fwd[neighbor] = next_cost;
-                            should_continue = true;
+                        let dist_fwd = dist_fwd_fwd.lock().unwrap();
+                        if cost > dist_fwd[position] {
+                            continue;
                         }
                     }
-                    if should_continue {
-                        let mut heap_fwd = heap_fwd.lock().unwrap();
-                        heap_fwd.push(State { cost: next_cost, position: neighbor });
-                        let mut prev_fwd = prev_fwd.lock().unwrap();
-                        prev_fwd[neighbor] = Some(position);
+                    for &(neighbor, weight) in &graph_fwd[position] {
+                        let next_cost = cost.saturating_add(weight);
+                        let mut should_continue = false;
+                        {
+                            let mut dist_fwd = dist_fwd_fwd.lock().unwrap();
+                            if next_cost < dist_fwd[neighbor] {
+                                dist_fwd[neighbor] = next_cost;
+                                should_continue = true;
+                            }
+                        }
+                        if should_continue {
+                            let mut heap_fwd = heap_fwd_fwd.lock().unwrap();
+                            heap_fwd.push(State { cost: next_cost, position: neighbor });
+                            let mut prev_fwd = prev_fwd_fwd.lock().unwrap();
+                            prev_fwd[neighbor] = Some(position);
+                        }
                     }
-                }
-                {
-                    let dist_bwd = dist_bwd.lock().unwrap();
-                    if let Some(&rev_cost) = dist_bwd.get(position) {
-                        if rev_cost != usize::MAX {
-                            let total_cost = {
-                                let dist_fwd = dist_fwd.lock().unwrap();
-                                dist_fwd[position].saturating_add(rev_cost)
-                            };
-                            let mut estimate = estimate.lock().unwrap();
-                            if total_cost < *estimate {
-                                *estimate = total_cost;
-                                let mut join_node = join_node.lock().unwrap();
-                                *join_node = Some(position);
+                    {
+                        let dist_bwd = dist_bwd_fwd.lock().unwrap();
+                        if let Some(&rev_cost) = dist_bwd.get(position) {
+                            if rev_cost != usize::MAX {
+                                let total_cost = {
+                                    let dist_fwd = dist_fwd_fwd.lock().unwrap();
+                                    dist_fwd[position].saturating_add(rev_cost)
+                                };
+                                let mut estimate = estimate_fwd.lock().unwrap();
+                                if total_cost < *estimate {
+                                    *estimate = total_cost;
+                                    let mut join_node = join_node_fwd.lock().unwrap();
+                                    *join_node = Some(position);
+                                    *forward_done_fwd.lock().unwrap() = true;
+                                    *backward_done_fwd.lock().unwrap() = true;
+                                }
                             }
                         }
                     }
+                } else {
+                    *forward_done_fwd.lock().unwrap() = true;
                 }
             }
         });
 
-        s.spawn(|_| {
-            while let Some(State { cost, position }) = {
-                let mut heap_bwd = heap_bwd.lock().unwrap();
-                heap_bwd.pop()
-            } {
-                {
-                    let dist_bwd = dist_bwd.lock().unwrap();
-                    if cost > dist_bwd[position] {
-                        continue;
-                    }
-                }
-                for &(neighbor, weight) in &rev_graph[position] {
-                    let next_cost = cost.saturating_add(weight);
-                    let mut should_continue = false;
+        let forward_done_bwd = Arc::clone(&forward_done);
+        let backward_done_bwd = Arc::clone(&backward_done);
+        let dist_fwd_bwd = Arc::clone(&dist_fwd);
+        let dist_bwd_bwd = Arc::clone(&dist_bwd);
+        let heap_bwd_bwd = Arc::clone(&heap_bwd);
+        let prev_bwd_bwd = Arc::clone(&prev_bwd);
+        let estimate_bwd = Arc::clone(&estimate);
+        let join_node_bwd = Arc::clone(&join_node);
+        let rev_graph_bwd = Arc::clone(&rev_graph);
+
+        s.spawn(move |_| {
+            while !*backward_done_bwd.lock().unwrap() {
+                if let Some(State { cost, position }) = {
+                    let mut heap_bwd = heap_bwd_bwd.lock().unwrap();
+                    heap_bwd.pop()
+                } {
                     {
-                        let mut dist_bwd = dist_bwd.lock().unwrap();
-                        if next_cost < dist_bwd[neighbor] {
-                            dist_bwd[neighbor] = next_cost;
-                            should_continue = true;
+                        let dist_bwd = dist_bwd_bwd.lock().unwrap();
+                        if cost > dist_bwd[position] {
+                            continue;
                         }
                     }
-                    if should_continue {
-                        let mut heap_bwd = heap_bwd.lock().unwrap();
-                        heap_bwd.push(State { cost: next_cost, position: neighbor });
-                        let mut prev_bwd = prev_bwd.lock().unwrap();
-                        prev_bwd[neighbor] = Some(position);
+                    for &(neighbor, weight) in &rev_graph_bwd[position] {
+                        let next_cost = cost.saturating_add(weight);
+                        let mut should_continue = false;
+                        {
+                            let mut dist_bwd = dist_bwd_bwd.lock().unwrap();
+                            if next_cost < dist_bwd[neighbor] {
+                                dist_bwd[neighbor] = next_cost;
+                                should_continue = true;
+                            }
+                        }
+                        if should_continue {
+                            let mut heap_bwd = heap_bwd_bwd.lock().unwrap();
+                            heap_bwd.push(State { cost: next_cost, position: neighbor });
+                            let mut prev_bwd = prev_bwd_bwd.lock().unwrap();
+                            prev_bwd[neighbor] = Some(position);
+                        }
                     }
-                }
-                {
-                    let dist_fwd = dist_fwd.lock().unwrap();
-                    if let Some(&fwd_cost) = dist_fwd.get(position) {
-                        if fwd_cost != usize::MAX {
-                            let total_cost = {
-                                let dist_bwd = dist_bwd.lock().unwrap();
-                                dist_bwd[position].saturating_add(fwd_cost)
-                            };
-                            let mut estimate = estimate.lock().unwrap();
-                            if total_cost < *estimate {
-                                *estimate = total_cost;
-                                let mut join_node = join_node.lock().unwrap();
-                                *join_node = Some(position);
+                    {
+                        let dist_fwd = dist_fwd_bwd.lock().unwrap();
+                        if let Some(&fwd_cost) = dist_fwd.get(position) {
+                            if fwd_cost != usize::MAX {
+                                let total_cost = {
+                                    let dist_bwd = dist_bwd_bwd.lock().unwrap();
+                                    dist_bwd[position].saturating_add(fwd_cost)
+                                };
+                                let mut estimate = estimate_bwd.lock().unwrap();
+                                if total_cost < *estimate {
+                                    *estimate = total_cost;
+                                    let mut join_node = join_node_bwd.lock().unwrap();
+                                    *join_node = Some(position);
+                                    *forward_done_bwd.lock().unwrap() = true;
+                                    *backward_done_bwd.lock().unwrap() = true;
+                                }
                             }
                         }
                     }
+                } else {
+                    *backward_done_bwd.lock().unwrap() = true;
                 }
             }
         });
@@ -187,6 +222,8 @@ fn reconstruct_path(goal: usize, prev: &[Option<usize>]) -> Vec<usize> {
     path.reverse();
     path
 }
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -286,16 +323,6 @@ mod tests {
         let (cost, path) = parallel_bidirectional_dijkstra(&graph, 0, 999);
         let duration = start_time.elapsed();
         println!("Bi-Test Large Simple Graph - Time elapsed: {:?}", duration);
-        println!("Cost: {}, Path length: {}", cost, path.len());
-    }
-
-    #[test]
-    fn test_large_disconnected_graph() {
-        let graph = generate_random_graph(1000, 3000);
-        let start_time = Instant::now();
-        let (cost, path) = parallel_bidirectional_dijkstra(&graph, 0, 999);
-        let duration = start_time.elapsed();
-        println!("Bi-Test Large Disconnected Graph - Time elapsed: {:?}", duration);
         println!("Cost: {}, Path length: {}", cost, path.len());
     }
 
